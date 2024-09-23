@@ -1,0 +1,1173 @@
+From 80ba8da80662cb88a5f1c0f173574c6edad698e7 Mon Sep 17 00:00:00 2001
+From: sanghoangnguyen <sang.nguyen-hoang@banvien.com.vn>
+Date: Thu, 18 Jan 2024 11:14:55 +0700
+Subject: [PATCH 4/4] VLP3.0.5: Add HDMI support for RZ/G1
+
+This patch supports:
+- ch7036 HDMI transmitter drivers for RZ/G1H
+- adv7511 HDMI transmitter drivers for RZ/G1M/N/E
+- patch fix/workaround for rcar-du drivers
+
+Signed-off-by: sanghoangnguyen <sang.nguyen-hoang@banvien.com.vn>
+---
+ .../0001-drm-i2c-Add-ch7036-driver.patch      | 886 ++++++++++++++++++
+ ...rm-rcar-du-Fix-DU1-restart-condition.patch |  33 +
+ ...car-du-Fix-VDSR-register-calculation.patch |  52 +
+ ...u-Fix-byte-alignment-check-for-pitch.patch |  38 +
+ ...dv7511-Change-CEC-device-s-i2c-addre.patch |  80 ++
+ .../linux/linux-renesas/rzg1_hdmi_patches.scc |   6 +
+ .../linux/linux-renesas_5.10.bbappend         |   1 +
+ 7 files changed, 1096 insertions(+)
+ create mode 100755 meta-rzg1/recipes-kernel/linux/linux-renesas/patches/hdmi_patches/0001-drm-i2c-Add-ch7036-driver.patch
+ create mode 100755 meta-rzg1/recipes-kernel/linux/linux-renesas/patches/hdmi_patches/0002-drm-rcar-du-Fix-DU1-restart-condition.patch
+ create mode 100755 meta-rzg1/recipes-kernel/linux/linux-renesas/patches/hdmi_patches/0003-drm-rcar-du-Fix-VDSR-register-calculation.patch
+ create mode 100755 meta-rzg1/recipes-kernel/linux/linux-renesas/patches/hdmi_patches/0004-drm-rcar-du-Fix-byte-alignment-check-for-pitch.patch
+ create mode 100755 meta-rzg1/recipes-kernel/linux/linux-renesas/patches/hdmi_patches/0005-gpu-drm-bridge-adv7511-Change-CEC-device-s-i2c-addre.patch
+ create mode 100644 meta-rzg1/recipes-kernel/linux/linux-renesas/rzg1_hdmi_patches.scc
+
+diff --git a/meta-rzg1/recipes-kernel/linux/linux-renesas/patches/hdmi_patches/0001-drm-i2c-Add-ch7036-driver.patch b/meta-rzg1/recipes-kernel/linux/linux-renesas/patches/hdmi_patches/0001-drm-i2c-Add-ch7036-driver.patch
+new file mode 100755
+index 00000000..1fe8d46a
+--- /dev/null
++++ b/meta-rzg1/recipes-kernel/linux/linux-renesas/patches/hdmi_patches/0001-drm-i2c-Add-ch7036-driver.patch
+@@ -0,0 +1,886 @@
++From edb39eeb55bc3c6d8bf7230c441754318fd69a58 Mon Sep 17 00:00:00 2001
++From: Hung Dong <hung.dong.xd@rvc.renesas.com>
++Date: Thu, 29 Oct 2020 19:28:20 +0700
++Subject: [PATCH 134/172] drm: i2c: Add ch7036 driver
++
++Signed-off-by: Hung Dong <hung.dong.xd@rvc.renesas.com>
++Signed-off-by: Duy Dang <duy.dang.yb@renesas.com>
++Signed-off-by: Nhan Nguyen <nhan.nguyen-thanh@banvien.com.vn>
++---
++ drivers/gpu/drm/i2c/Kconfig      |   6 +
++ drivers/gpu/drm/i2c/Makefile     |   3 +
++ drivers/gpu/drm/i2c/ch7036_drv.c | 831 +++++++++++++++++++++++++++++++
++ 3 files changed, 840 insertions(+)
++ create mode 100644 drivers/gpu/drm/i2c/ch7036_drv.c
++
++diff --git a/drivers/gpu/drm/i2c/Kconfig b/drivers/gpu/drm/i2c/Kconfig
++index 6f19e1c35e30..04e537640088 100644
++--- a/drivers/gpu/drm/i2c/Kconfig
+++++ b/drivers/gpu/drm/i2c/Kconfig
++@@ -12,6 +12,12 @@ config DRM_I2C_CH7006
++ 	  This driver is currently only useful if you're also using
++ 	  the nouveau driver.
++ 
+++config DRM_I2C_CH7036
+++	tristate "Chrontel ch7036 LVDS to HDMI converter"
+++	help
+++	  Support for Chrontel ch7036 and similar TV encoders, found
+++	  on some nVidia video cards.
+++
++ config DRM_I2C_SIL164
++ 	tristate "Silicon Image sil164 TMDS transmitter"
++ 	default m if DRM_NOUVEAU
++diff --git a/drivers/gpu/drm/i2c/Makefile b/drivers/gpu/drm/i2c/Makefile
++index a962f6f08568..f22a9ce3ce66 100644
++--- a/drivers/gpu/drm/i2c/Makefile
+++++ b/drivers/gpu/drm/i2c/Makefile
++@@ -2,6 +2,9 @@
++ ch7006-y := ch7006_drv.o ch7006_mode.o
++ obj-$(CONFIG_DRM_I2C_CH7006) += ch7006.o
++ 
+++ch7036-y := ch7036_drv.o
+++obj-$(CONFIG_DRM_I2C_CH7036) += ch7036.o
+++
++ sil164-y := sil164_drv.o
++ obj-$(CONFIG_DRM_I2C_SIL164) += sil164.o
++ 
++diff --git a/drivers/gpu/drm/i2c/ch7036_drv.c b/drivers/gpu/drm/i2c/ch7036_drv.c
++new file mode 100644
++index 000000000000..f66f6bd5d34b
++--- /dev/null
+++++ b/drivers/gpu/drm/i2c/ch7036_drv.c
++@@ -0,0 +1,831 @@
+++/*
+++ * Copyright (C) 2009 Francisco Jerez.
+++ * All Rights Reserved.
+++ *
+++ * Permission is hereby granted, free of charge, to any person obtaining
+++ * a copy of this software and associated documentation files (the
+++ * "Software"), to deal in the Software without restriction, including
+++ * without limitation the rights to use, copy, modify, merge, publish,
+++ * distribute, sublicense, and/or sell copies of the Software, and to
+++ * permit persons to whom the Software is furnished to do so, subject to
+++ * the following conditions:
+++ *
+++ * The above copyright notice and this permission notice (including the
+++ * next paragraph) shall be included in all copies or substantial
+++ * portions of the Software.
+++ *
+++ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+++ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+++ * MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+++ * IN NO EVENT SHALL THE COPYRIGHT OWNER(S) AND/OR ITS SUPPLIERS BE
+++ * LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
+++ * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
+++ * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+++ *
+++ */
+++
+++#include <linux/module.h>
+++#include <linux/i2c.h>
+++
+++#include <drm/drm_encoder_slave.h>
+++
+++struct regval_list {
+++	u8 reg_num;
+++	u8 value;
+++};
+++
+++static const struct regval_list pwr_vals[] = {
+++	/* Page 0 (0x03 = 0x00) */
+++	{ 0x03, 0x00 },
+++	{ 0x00, 0x56 },
+++	{ 0x01, 0xF1 },
+++	{ 0x02, 0xF3 },
+++	{ 0x03, 0x00 },
+++	{ 0x04, 0x36 },
+++	{ 0x05, 0x58 },
+++	{ 0x06, 0xAC },
+++	{ 0x07, 0xD0 },
+++	{ 0x08, 0x0F },
+++	{ 0x09, 0x02 },
+++	{ 0x0A, 0x04 },
+++	{ 0x0B, 0x2C },
+++	{ 0x0C, 0x00 },
+++	{ 0x0D, 0x40 },
+++	{ 0x0E, 0x00 },
+++	{ 0x0F, 0x18 },
+++	{ 0x10, 0x88 },
+++	{ 0x11, 0x1B },
+++	{ 0x12, 0x00 },
+++	{ 0x13, 0x26 },
+++	{ 0x14, 0x00 },
+++	{ 0x15, 0x03 },
+++	{ 0x16, 0x06 },
+++	{ 0x17, 0x00 },
+++	{ 0x18, 0x00 },
+++	{ 0x19, 0x88 },
+++	{ 0x1A, 0x00 },
+++	{ 0x1B, 0x00 },
+++	{ 0x1C, 0x69 },
+++	{ 0x1D, 0x78 },
+++	{ 0x1E, 0x00 },
+++	{ 0x1F, 0x47 },
+++	{ 0x20, 0x80 },
+++	{ 0x21, 0x98 },
+++	{ 0x22, 0x00 },
+++	{ 0x23, 0x10 },
+++	{ 0x24, 0x60 },
+++	{ 0x25, 0x24 },
+++	{ 0x26, 0x38 },
+++	{ 0x27, 0x65 },
+++	{ 0x28, 0x00 },
+++	{ 0x29, 0x0A },
+++	{ 0x2A, 0x02 },
+++	{ 0x2B, 0x08 },
+++	{ 0x2C, 0x00 },
+++	{ 0x2D, 0x00 },
+++	{ 0x2E, 0x3F },
+++	{ 0x2F, 0x00 },
+++	{ 0x30, 0x01 },
+++	{ 0x31, 0x01 },
+++	{ 0x32, 0xC0 },
+++	{ 0x33, 0x01 },
+++	{ 0x34, 0x01 },
+++	{ 0x35, 0x80 },
+++	{ 0x36, 0x40 },
+++	{ 0x37, 0x40 },
+++	{ 0x38, 0x47 },
+++	{ 0x39, 0x88 },
+++	{ 0x3A, 0x00 },
+++	{ 0x3B, 0x00 },
+++	{ 0x3C, 0x00 },
+++	{ 0x3D, 0x8A },
+++	{ 0x3E, 0x00 },
+++	{ 0x3F, 0x11 },
+++	{ 0x40, 0x10 },
+++	{ 0x41, 0x00 },
+++	{ 0x42, 0x00 },
+++	{ 0x43, 0x00 },
+++	{ 0x44, 0x00 },
+++	{ 0x45, 0x00 },
+++	{ 0x46, 0x00 },
+++	{ 0x47, 0x00 },
+++	{ 0x48, 0x00 },
+++	{ 0x49, 0x00 },
+++	{ 0x4A, 0x00 },
+++	{ 0x4B, 0x40 },
+++	{ 0x4C, 0x40 },
+++	{ 0x4D, 0x80 },
+++	{ 0x4E, 0x00 },
+++	{ 0x4F, 0x00 },
+++	{ 0x50, 0x00 },
+++	{ 0x51, 0x1F },
+++	{ 0x52, 0xFF },
+++	{ 0x53, 0x00 },
+++	{ 0x54, 0x80 },
+++	{ 0x55, 0x58 },
+++	{ 0x56, 0x2C },
+++	{ 0x57, 0x00 },
+++	{ 0x58, 0x04 },
+++	{ 0x59, 0x05 },
+++	{ 0x5A, 0x08 },
+++	{ 0x5B, 0x00 },
+++	{ 0x5C, 0x00 },
+++	{ 0x5D, 0x00 },
+++	{ 0x5E, 0x54 },
+++	{ 0x5F, 0x00 },
+++	{ 0x60, 0x00 },
+++	{ 0x61, 0x00 },
+++	{ 0x62, 0x00 },
+++	{ 0x63, 0x01 },
+++	{ 0x64, 0x20 },
+++	{ 0x65, 0x90 },
+++	{ 0x66, 0x20 },
+++	{ 0x67, 0x22 },
+++	{ 0x68, 0x46 },
+++	{ 0x69, 0x24 },
+++	{ 0x6A, 0x40 },
+++	{ 0x6B, 0x60 },
+++	{ 0x6C, 0x10 },
+++	{ 0x6D, 0x00 },
+++	{ 0x6E, 0xA8 },
+++	{ 0x6F, 0x4B },
+++	{ 0x70, 0x98 },
+++	{ 0x71, 0x01 },
+++	{ 0x72, 0x00 },
+++	{ 0x73, 0x00 },
+++	{ 0x74, 0x20 },
+++	{ 0x75, 0x80 },
+++	{ 0x76, 0x18 },
+++	{ 0x77, 0x00 },
+++	{ 0x78, 0x00 },
+++	{ 0x79, 0x01 },
+++	{ 0x7A, 0x00 },
+++	{ 0x7B, 0x00 },
+++	{ 0x7C, 0x00 },
+++	{ 0x7D, 0xFF },
+++	{ 0x7E, 0x0F },
+++	{ 0x7F, 0x00 },
+++
+++	/* Page 1 (0x03 = 0x01): */
+++	{ 0x03, 0x01 },
+++	{ 0x00, 0x56 },
+++	{ 0x01, 0xF1 },
+++	{ 0x02, 0xF3 },
+++	{ 0x03, 0x01 },
+++	{ 0x04, 0x36 },
+++	{ 0x05, 0x58 },
+++	{ 0x06, 0xAC },
+++	{ 0x07, 0x26 },
+++	{ 0x08, 0x00 },
+++	{ 0x09, 0x4B },
+++	{ 0x0A, 0x00 },
+++	{ 0x0B, 0x6D },
+++	{ 0x0C, 0x74 },
+++	{ 0x0D, 0x51 },
+++	{ 0x0E, 0x13 },
+++	{ 0x0F, 0x1C },
+++	{ 0x10, 0x00 },
+++	{ 0x11, 0x08 },
+++	{ 0x12, 0xD6 },
+++	{ 0x13, 0x28 },
+++	{ 0x14, 0x91 },
+++	{ 0x15, 0x68 },
+++	{ 0x16, 0x20 },
+++	{ 0x17, 0x0E },
+++	{ 0x18, 0xC8 },
+++	{ 0x19, 0x42 },
+++	{ 0x1A, 0x7C },
+++	{ 0x1B, 0x00 },
+++	{ 0x1C, 0x00 },
+++	{ 0x1D, 0x00 },
+++	{ 0x1E, 0x00 },
+++	{ 0x1F, 0x00 },
+++	{ 0x20, 0x00 },
+++	{ 0x21, 0x10 },
+++	{ 0x22, 0x07 },
+++	{ 0x23, 0x24 },
+++	{ 0x24, 0xB6 },
+++	{ 0x25, 0x10 },
+++	{ 0x26, 0x00 },
+++	{ 0x27, 0x00 },
+++	{ 0x28, 0x54 },
+++	{ 0x29, 0x60 },
+++	{ 0x2A, 0x00 },
+++	{ 0x2B, 0x00 },
+++	{ 0x2C, 0x00 },
+++	{ 0x2D, 0x00 },
+++	{ 0x2E, 0x00 },
+++	{ 0x2F, 0x00 },
+++	{ 0x30, 0x00 },
+++	{ 0x31, 0x00 },
+++	{ 0x32, 0x00 },
+++	{ 0x33, 0x00 },
+++	{ 0x34, 0x00 },
+++	{ 0x35, 0x00 },
+++	{ 0x36, 0x00 },
+++	{ 0x37, 0x00 },
+++	{ 0x38, 0x00 },
+++	{ 0x39, 0x00 },
+++	{ 0x3A, 0x00 },
+++	{ 0x3B, 0x0B },
+++	{ 0x3C, 0x00 },
+++	{ 0x3D, 0x00 },
+++	{ 0x3E, 0x00 },
+++	{ 0x3F, 0x00 },
+++	{ 0x40, 0x08 },
+++	{ 0x41, 0x00 },
+++	{ 0x42, 0x14 },
+++	{ 0x43, 0x20 },
+++	{ 0x44, 0x00 },
+++	{ 0x45, 0x00 },
+++	{ 0x46, 0x20 },
+++	{ 0x47, 0x00 },
+++	{ 0x48, 0x49 },
+++	{ 0x49, 0x10 },
+++	{ 0x4A, 0xFF },
+++	{ 0x4B, 0xFF },
+++	{ 0x4C, 0xFF },
+++	{ 0x4D, 0x00 },
+++	{ 0x4E, 0x08 },
+++	{ 0x4F, 0x00 },
+++	{ 0x50, 0x00 },
+++	{ 0x51, 0x00 },
+++	{ 0x52, 0x00 },
+++	{ 0x53, 0x00 },
+++	{ 0x54, 0x00 },
+++	{ 0x55, 0xA0 },
+++	{ 0x56, 0x00 },
+++	{ 0x57, 0x00 },
+++	{ 0x58, 0x00 },
+++	{ 0x59, 0x00 },
+++	{ 0x5A, 0x00 },
+++	{ 0x5B, 0x7A },
+++	{ 0x5C, 0x5E },
+++	{ 0x5D, 0x6E },
+++	{ 0x5E, 0x1F },
+++	{ 0x5F, 0x1F },
+++	{ 0x60, 0x00 },
+++	{ 0x61, 0x00 },
+++	{ 0x62, 0x00 },
+++	{ 0x63, 0x20 },
+++	{ 0x64, 0x40 },
+++	{ 0x65, 0x40 },
+++	{ 0x66, 0x40 },
+++	{ 0x67, 0x00 },
+++	{ 0x68, 0x00 },
+++	{ 0x69, 0x00 },
+++	{ 0x6A, 0x00 },
+++	{ 0x6B, 0xFF },
+++	{ 0x6C, 0xFF },
+++	{ 0x6D, 0xFF },
+++	{ 0x6E, 0xFF },
+++	{ 0x6F, 0x50 },
+++	{ 0x70, 0x00 },
+++	{ 0x71, 0x00 },
+++	{ 0x72, 0x09 },
+++	{ 0x73, 0x00 },
+++	{ 0x74, 0x00 },
+++	{ 0x75, 0x70 },
+++	{ 0x76, 0x00 },
+++	{ 0x77, 0x50 },
+++	{ 0x78, 0x00 },
+++	{ 0x79, 0x98 },
+++	{ 0x7A, 0x00 },
+++	{ 0x7B, 0x98 },
+++	{ 0x7C, 0xFF },
+++	{ 0x7D, 0x00 },
+++	{ 0x7E, 0x00 },
+++	{ 0x7F, 0x80 },
+++
+++	/*Page 2 (0x03 = 0x02): */
+++	{ 0x03, 0x02 },
+++	{ 0x00, 0x56 },
+++	{ 0x01, 0xF1 },
+++	{ 0x02, 0xF3 },
+++	{ 0x03, 0xFF },
+++	{ 0x04, 0x36 },
+++	{ 0x05, 0x58 },
+++	{ 0x06, 0xAC },
+++	{ 0x07, 0xFF },
+++	{ 0x08, 0xFF },
+++	{ 0x09, 0xFF },
+++	{ 0x0A, 0xFF },
+++	{ 0x0B, 0xFF },
+++	{ 0x0C, 0xFF },
+++	{ 0x0D, 0xFF },
+++	{ 0x0E, 0xFF },
+++	{ 0x0F, 0xFF },
+++	{ 0x10, 0xFF },
+++	{ 0x11, 0xFF },
+++	{ 0x12, 0xFF },
+++	{ 0x13, 0xFF },
+++	{ 0x14, 0xFF },
+++	{ 0x15, 0xFF },
+++	{ 0x16, 0xFF },
+++	{ 0x17, 0xFF },
+++	{ 0x18, 0xFF },
+++	{ 0x19, 0xFF },
+++	{ 0x1A, 0xFF },
+++	{ 0x1B, 0xFF },
+++	{ 0x1C, 0xFF },
+++	{ 0x1D, 0xFF },
+++	{ 0x1E, 0xFF },
+++	{ 0x1F, 0xFF },
+++	{ 0x20, 0xFF },
+++	{ 0x21, 0xFF },
+++	{ 0x22, 0xFF },
+++	{ 0x23, 0xFF },
+++	{ 0x24, 0xFF },
+++	{ 0x25, 0xFF },
+++	{ 0x26, 0xFF },
+++	{ 0x27, 0xFF },
+++	{ 0x28, 0xFF },
+++	{ 0x29, 0xFF },
+++	{ 0x2A, 0xFF },
+++	{ 0x2B, 0xFF },
+++	{ 0x2C, 0xFF },
+++	{ 0x2D, 0xFF },
+++	{ 0x2E, 0xFF },
+++	{ 0x2F, 0xFF },
+++	{ 0x30, 0xFF },
+++	{ 0x31, 0xFF },
+++	{ 0x32, 0xFF },
+++	{ 0x33, 0xFF },
+++	{ 0x34, 0xFF },
+++	{ 0x35, 0xFF },
+++	{ 0x36, 0xFF },
+++	{ 0x37, 0xFF },
+++	{ 0x38, 0xFF },
+++	{ 0x39, 0xFF },
+++	{ 0x3A, 0xFF },
+++	{ 0x3B, 0xFF },
+++	{ 0x3C, 0xFF },
+++	{ 0x3D, 0xFF },
+++	{ 0x3E, 0xFF },
+++	{ 0x3F, 0xFF },
+++	{ 0x40, 0xFF },
+++	{ 0x41, 0xFF },
+++	{ 0x42, 0xFF },
+++	{ 0x43, 0xFF },
+++	{ 0x44, 0xFF },
+++	{ 0x45, 0xFF },
+++	{ 0x46, 0xFF },
+++	{ 0x47, 0xFF },
+++	{ 0x48, 0xFF },
+++	{ 0x49, 0xFF },
+++	{ 0x4A, 0xFF },
+++	{ 0x4B, 0xFF },
+++	{ 0x4C, 0xFF },
+++	{ 0x4D, 0xFF },
+++	{ 0x4E, 0xFF },
+++	{ 0x4F, 0xFF },
+++	{ 0x50, 0xFF },
+++	{ 0x51, 0xFF },
+++	{ 0x52, 0xFF },
+++	{ 0x53, 0xFF },
+++	{ 0x54, 0xFF },
+++	{ 0x55, 0xFF },
+++	{ 0x56, 0xFF },
+++	{ 0x57, 0xFF },
+++	{ 0x58, 0xFF },
+++	{ 0x59, 0xFF },
+++	{ 0x5A, 0xFF },
+++	{ 0x5B, 0xFF },
+++	{ 0x5C, 0xFF },
+++	{ 0x5D, 0xFF },
+++	{ 0x5E, 0xFF },
+++	{ 0x5F, 0xFF },
+++	{ 0x60, 0xFF },
+++	{ 0x61, 0xFF },
+++	{ 0x62, 0xFF },
+++	{ 0x63, 0xFF },
+++	{ 0x64, 0xFF },
+++	{ 0x65, 0xFF },
+++	{ 0x66, 0xFF },
+++	{ 0x67, 0xFF },
+++	{ 0x68, 0xFF },
+++	{ 0x69, 0xFF },
+++	{ 0x6A, 0xFF },
+++	{ 0x6B, 0xFF },
+++	{ 0x6C, 0xFF },
+++	{ 0x6D, 0xFF },
+++	{ 0x6E, 0xFF },
+++	{ 0x6F, 0xFF },
+++	{ 0x70, 0xFF },
+++	{ 0x71, 0xFF },
+++	{ 0x72, 0xFF },
+++	{ 0x73, 0xFF },
+++	{ 0x74, 0xFF },
+++	{ 0x75, 0xFF },
+++	{ 0x76, 0xFF },
+++	{ 0x77, 0xFF },
+++	{ 0x78, 0xFF },
+++	{ 0x79, 0xFF },
+++	{ 0x7A, 0xFF },
+++	{ 0x7B, 0xFF },
+++	{ 0x7C, 0xFF },
+++	{ 0x7D, 0xFF },
+++	{ 0x7E, 0xFF },
+++	{ 0x7F, 0xFF },
+++
+++	/* Page 3 {0x03 , 0x03}, */
+++	{ 0x03, 0x03 },
+++	{ 0x00, 0x56 },
+++	{ 0x01, 0xF1 },
+++	{ 0x02, 0xF3 },
+++	{ 0x03, 0x03 },
+++	{ 0x04, 0x36 },
+++	{ 0x05, 0x58 },
+++	{ 0x06, 0xAC },
+++	{ 0x07, 0x00 },
+++	{ 0x08, 0x00 },
+++	{ 0x09, 0x00 },
+++	{ 0x0A, 0x00 },
+++	{ 0x0B, 0x00 },
+++	{ 0x0C, 0xFF },
+++	{ 0x0D, 0x00 },
+++	{ 0x0E, 0x03 },
+++	{ 0x0F, 0x19 },
+++	{ 0x10, 0x40 },
+++	{ 0x11, 0x01 },
+++	{ 0x12, 0x00 },
+++	{ 0x13, 0x00 },
+++	{ 0x14, 0x00 },
+++	{ 0x15, 0x00 },
+++	{ 0x16, 0x00 },
+++	{ 0x17, 0x00 },
+++	{ 0x18, 0x00 },
+++	{ 0x19, 0x00 },
+++	{ 0x1A, 0x00 },
+++	{ 0x1B, 0x00 },
+++	{ 0x1C, 0x00 },
+++	{ 0x1D, 0x00 },
+++	{ 0x1E, 0x00 },
+++	{ 0x1F, 0x00 },
+++	{ 0x20, 0x00 },
+++	{ 0x21, 0x00 },
+++	{ 0x22, 0x42 },
+++	{ 0x23, 0x1D },
+++	{ 0x24, 0x8A },
+++	{ 0x25, 0x11 },
+++	{ 0x26, 0xFF },
+++	{ 0x27, 0xFF },
+++	{ 0x28, 0xFF },
+++	{ 0x29, 0xFF },
+++	{ 0x2A, 0xFF },
+++	{ 0x2B, 0xFF },
+++	{ 0x2C, 0xFF },
+++	{ 0x2D, 0xFF },
+++	{ 0x2E, 0xFF },
+++	{ 0x2F, 0xFF },
+++	{ 0x30, 0xFF },
+++	{ 0x31, 0xFF },
+++	{ 0x32, 0xFF },
+++	{ 0x33, 0xFF },
+++	{ 0x34, 0xFF },
+++	{ 0x35, 0xFF },
+++	{ 0x36, 0xFF },
+++	{ 0x37, 0xFF },
+++	{ 0x38, 0xFF },
+++	{ 0x39, 0xFF },
+++	{ 0x3A, 0xFF },
+++	{ 0x3B, 0xFF },
+++	{ 0x3C, 0xFF },
+++	{ 0x3D, 0xFF },
+++	{ 0x3E, 0xFF },
+++	{ 0x3F, 0xFF },
+++	{ 0x40, 0xFF },
+++	{ 0x41, 0x09 },
+++	{ 0x42, 0x1D },
+++	{ 0x43, 0x0F },
+++	{ 0x44, 0x00 },
+++	{ 0x45, 0xFF },
+++	{ 0x46, 0xFF },
+++	{ 0x47, 0xFF },
+++	{ 0x48, 0xFF },
+++	{ 0x49, 0xFF },
+++	{ 0x4A, 0xFF },
+++	{ 0x4B, 0xFF },
+++	{ 0x4C, 0xFF },
+++	{ 0x4D, 0xFF },
+++	{ 0x4E, 0xFF },
+++	{ 0x4F, 0xFF },
+++	{ 0x50, 0xFF },
+++	{ 0x51, 0xFF },
+++	{ 0x52, 0xFF },
+++	{ 0x53, 0xFF },
+++	{ 0x54, 0xFF },
+++	{ 0x55, 0xFF },
+++	{ 0x56, 0xFF },
+++	{ 0x57, 0xFF },
+++	{ 0x58, 0xFF },
+++	{ 0x59, 0xFF },
+++	{ 0x5A, 0xFF },
+++	{ 0x5B, 0xFF },
+++	{ 0x5C, 0xFF },
+++	{ 0x5D, 0xFF },
+++	{ 0x5E, 0xFF },
+++	{ 0x5F, 0xFF },
+++	{ 0x60, 0xFF },
+++	{ 0x61, 0xFF },
+++	{ 0x62, 0xFF },
+++	{ 0x63, 0xFF },
+++	{ 0x64, 0xFF },
+++	{ 0x65, 0xFF },
+++	{ 0x66, 0xFF },
+++	{ 0x67, 0xFF },
+++	{ 0x68, 0xFF },
+++	{ 0x69, 0xFF },
+++	{ 0x6A, 0xFF },
+++	{ 0x6B, 0xFF },
+++	{ 0x6C, 0xFF },
+++	{ 0x6D, 0xFF },
+++	{ 0x6E, 0x00 },
+++	{ 0x6F, 0x00 },
+++	{ 0x70, 0xFF },
+++	{ 0x71, 0xF8 },
+++	{ 0x72, 0xFF },
+++	{ 0x73, 0x00 },
+++	{ 0x74, 0x02 },
+++	{ 0x75, 0xFF },
+++	{ 0x76, 0x00 },
+++	{ 0x77, 0x00 },
+++	{ 0x78, 0x00 },
+++	{ 0x79, 0xFF },
+++	{ 0x7A, 0xFF },
+++	{ 0x7B, 0xFF },
+++	{ 0x7C, 0xFF },
+++	{ 0x7D, 0xFF },
+++	{ 0x7E, 0xFF },
+++	{ 0x7F, 0xFF },
+++
+++	/*Page 4 (0x03 = 0x04): */
+++	{ 0x03, 0x04 },
+++	{ 0x00, 0x56 },
+++	{ 0x01, 0xF1 },
+++	{ 0x02, 0xF3 },
+++	{ 0x03, 0x04 },
+++	{ 0x04, 0x36 },
+++	{ 0x05, 0x58 },
+++	{ 0x06, 0xAC },
+++	{ 0x07, 0xFF },
+++	{ 0x08, 0x00 },
+++	{ 0x09, 0x00 },
+++	{ 0x0A, 0x00 },
+++	{ 0x0B, 0x00 },
+++	{ 0x0C, 0x00 },
+++	{ 0x0D, 0x00 },
+++	{ 0x0E, 0x00 },
+++	{ 0x0F, 0x28 },
+++	{ 0x10, 0x44 },
+++	{ 0x11, 0x14 },
+++	{ 0x12, 0x88 },
+++	{ 0x13, 0x70 },
+++	{ 0x14, 0xFD },
+++	{ 0x15, 0xE8 },
+++	{ 0x16, 0x00 },
+++	{ 0x17, 0x00 },
+++	{ 0x18, 0xFF },
+++	{ 0x19, 0xFF },
+++	{ 0x1A, 0xFF },
+++	{ 0x1B, 0xFF },
+++	{ 0x1C, 0xFF },
+++	{ 0x1D, 0xFF },
+++	{ 0x1E, 0xFF },
+++	{ 0x1F, 0xFF },
+++	{ 0x20, 0xFF },
+++	{ 0x21, 0xFF },
+++	{ 0x22, 0xFF },
+++	{ 0x23, 0xFF },
+++	{ 0x24, 0xFF },
+++	{ 0x25, 0xFF },
+++	{ 0x26, 0xFF },
+++	{ 0x27, 0xFF },
+++	{ 0x28, 0x00 },
+++	{ 0x29, 0x00 },
+++	{ 0x2A, 0x7F },
+++	{ 0x2B, 0x07 },
+++	{ 0x2C, 0xEF },
+++	{ 0x2D, 0x07 },
+++	{ 0x2E, 0x5F },
+++	{ 0x2F, 0x07 },
+++	{ 0x30, 0x86 },
+++	{ 0x31, 0x07 },
+++	{ 0x32, 0x80 },
+++	{ 0x33, 0x00 },
+++	{ 0x34, 0x80 },
+++	{ 0x35, 0x00 },
+++	{ 0x36, 0x08 },
+++	{ 0x37, 0x87 },
+++	{ 0x38, 0x89 },
+++	{ 0x39, 0x0B },
+++	{ 0x3A, 0x5F },
+++	{ 0x3B, 0x9D },
+++	{ 0x3C, 0x10 },
+++	{ 0x3D, 0x00 },
+++	{ 0x3E, 0x00 },
+++	{ 0x3F, 0x00 },
+++	{ 0x40, 0x00 },
+++	{ 0x41, 0xFF },
+++	{ 0x42, 0xFF },
+++	{ 0x43, 0xFF },
+++	{ 0x44, 0xFF },
+++	{ 0x45, 0x00 },
+++	{ 0x46, 0x03 },
+++	{ 0x47, 0x00 },
+++	{ 0x48, 0x00 },
+++	{ 0x49, 0x00 },
+++	{ 0x4A, 0x24 },
+++	{ 0x4B, 0x00 },
+++	{ 0x4C, 0x48 },
+++	{ 0x4D, 0xFF },
+++	{ 0x4E, 0xFF },
+++	{ 0x4F, 0x7F },
+++	{ 0x50, 0x56 },
+++	{ 0x51, 0x81 },
+++	{ 0x52, 0x2F },
+++	{ 0x53, 0x00 },
+++	{ 0x54, 0xC4 },
+++	{ 0x55, 0x5A },
+++	{ 0x56, 0x6F },
+++	{ 0x57, 0x02 },
+++	{ 0x58, 0x20 },
+++	{ 0x59, 0x80 },
+++	{ 0x5A, 0x04 },
+++	{ 0x5B, 0x00 },
+++	{ 0x5C, 0x80 },
+++	{ 0x5D, 0x00 },
+++	{ 0x5E, 0x05 },
+++	{ 0x5F, 0x38 },
+++	{ 0x60, 0x01 },
+++	{ 0x61, 0x83 },
+++	{ 0x62, 0x11 },
+++	{ 0x63, 0x01 },
+++	{ 0x64, 0x80 },
+++	{ 0x65, 0x90 },
+++	{ 0x66, 0x06 },
+++	{ 0x67, 0xC0 },
+++	{ 0x68, 0x4A },
+++	{ 0x69, 0xBC },
+++	{ 0x6A, 0x00 },
+++	{ 0x6B, 0x00 },
+++	{ 0x6C, 0x00 },
+++	{ 0x6D, 0x00 },
+++	{ 0x6E, 0x89 },
+++	{ 0x6F, 0x10 },
+++	{ 0x70, 0xAC },
+++	{ 0x71, 0x00 },
+++	{ 0x72, 0xE0 },
+++	{ 0x73, 0x80 },
+++	{ 0x74, 0x80 },
+++	{ 0x75, 0x19 },
+++	{ 0x76, 0x7D },
+++	{ 0x77, 0x00 },
+++	{ 0x78, 0xFF },
+++	{ 0x79, 0xFF },
+++	{ 0x7A, 0xFF },
+++	{ 0x7B, 0xFF },
+++	{ 0x7C, 0xFF },
+++	{ 0x7D, 0xFF },
+++	{ 0x7E, 0x80 },
+++	{ 0x7F, 0x4C },
+++	{ 0xff, 0xff },
+++};
+++
+++struct ch7036 {
+++	struct i2c_client *client;
+++	struct drm_encoder *encoder;
+++};
+++
+++/* Some helper macros */
+++#define ch7036_info(client, format, ...) \
+++	dev_info(&client->dev, format, __VA_ARGS__)
+++#define ch7036_err(client, format, ...) \
+++	dev_err(&client->dev, format, __VA_ARGS__)
+++
+++/* HW access functions */
+++void ch7036_write(struct i2c_client *client, uint8_t addr, uint8_t val)
+++{
+++	uint8_t buf[] = {addr, val};
+++	int ret;
+++
+++	ret = i2c_master_send(client, buf, ARRAY_SIZE(buf));
+++	if (ret < 0)
+++		ch7036_err(client, "Error %d writing to subaddress 0x%x\n",
+++				ret, addr);
+++}
+++
+++uint8_t ch7036_read(struct i2c_client *client, uint8_t addr)
+++{
+++	uint8_t val;
+++	int ret;
+++
+++	ret = i2c_master_send(client, &addr, sizeof(addr));
+++	if (ret < 0)
+++		goto fail;
+++
+++	ret = i2c_master_recv(client, &val, sizeof(val));
+++	if (ret < 0)
+++		goto fail;
+++
+++	return val;
+++
+++fail:
+++	ch7036_err(client, "Error %d reading from subaddress 0x%x\n",
+++			ret, addr);
+++	return 0;
+++}
+++
+++/* I2C driver functions */
+++
+++static int ch7036_probe(struct i2c_client *client,
+++				const struct i2c_device_id *id)
+++{
+++	const struct regval_list *reg_def = pwr_vals;
+++	int dev_id;
+++
+++	ch7036_write(client, 0x3, 0x4);
+++	dev_id = ch7036_read(client, 0x50);
+++	ch7036_info(client, "ch7036 is probed. The device ID is 0x%x\n",
+++				dev_id);
+++
+++	if (dev_id != 0x56)
+++		return -ENODEV;
+++
+++	for (; reg_def->reg_num != 0xff; ) {
+++		ch7036_write(client, reg_def->reg_num, reg_def->value);
+++		reg_def++;
+++	}
+++
+++	return 0;
+++}
+++
+++static int ch7036_remove(struct i2c_client *client)
+++{
+++	return 0;
+++}
+++
+++static int ch7036_resume(struct device *dev)
+++{
+++	return 0;
+++}
+++
+++static int ch7036_encoder_init(struct i2c_client *i2c,
+++	struct drm_device *dev, struct drm_encoder_slave *encoder)
+++{
+++	struct ch7036 *ch7036 = i2c_get_clientdata(i2c);
+++
+++	encoder->slave_priv = ch7036;
+++	encoder->slave_funcs = NULL;
+++
+++	ch7036->encoder = &encoder->base;
+++
+++	return 0;
+++}
+++
+++static struct i2c_device_id ch7036_ids[] = {
+++	{ "ch7036", 0 },
+++	{ }
+++};
+++MODULE_DEVICE_TABLE(i2c, ch7036_ids);
+++
+++static const struct dev_pm_ops ch7036_pm_ops = {
+++	.resume = ch7036_resume,
+++};
+++
+++static const struct of_device_id ch7036_of_ids[] = {
+++	{ .compatible = "cil,ch7036", },
+++	{ }
+++};
+++MODULE_DEVICE_TABLE(of, ch7036_of_ids);
+++
+++static struct drm_i2c_encoder_driver ch7036_driver = {
+++	.i2c_driver = {
+++		.probe = ch7036_probe,
+++		.remove = ch7036_remove,
+++		.driver = {
+++			.name = "ch7036",
+++			.of_match_table = ch7036_of_ids,
+++		},
+++		.id_table = ch7036_ids,
+++	},
+++
+++	.encoder_init = ch7036_encoder_init,
+++};
+++
+++static int __init ch7036_init(void)
+++{
+++	return drm_i2c_encoder_register(THIS_MODULE, &ch7036_driver);
+++}
+++
+++static void __exit ch7036_exit(void)
+++{
+++	drm_i2c_encoder_unregister(&ch7036_driver);
+++}
+++
+++MODULE_AUTHOR("Francisco Jerez <currojerez@riseup.net>");
+++MODULE_DESCRIPTION("Chrontel ch7036 HDMI driver");
+++MODULE_LICENSE("GPL and additional rights");
+++
+++module_init(ch7036_init);
+++module_exit(ch7036_exit);
++-- 
++2.25.1
++
+diff --git a/meta-rzg1/recipes-kernel/linux/linux-renesas/patches/hdmi_patches/0002-drm-rcar-du-Fix-DU1-restart-condition.patch b/meta-rzg1/recipes-kernel/linux/linux-renesas/patches/hdmi_patches/0002-drm-rcar-du-Fix-DU1-restart-condition.patch
+new file mode 100755
+index 00000000..ed5b9e9b
+--- /dev/null
++++ b/meta-rzg1/recipes-kernel/linux/linux-renesas/patches/hdmi_patches/0002-drm-rcar-du-Fix-DU1-restart-condition.patch
+@@ -0,0 +1,33 @@
++From cfe22dff6a18102738f17e2500efc4cdc8a28be0 Mon Sep 17 00:00:00 2001
++From: Koji Matsuoka <koji.matsuoka.xm@renesas.com>
++Date: Wed, 14 Nov 2018 16:20:36 +0700
++Subject: [PATCH 134/174] drm: rcar-du: Fix DU1 restart condition
++
++When the display timing and dot clock generator 1 for planes
++associated with DU1 are selected, DU1 should always be restarted.
++
++Signed-off-by: Koji Matsuoka <koji.matsuoka.xm@renesas.com>
++Signed-off-by: Hung Dong <hung.dong.xd@rvc.renesas.com>
++Signed-off-by: Duy Dang <duy.dang.yb@renesas.com>
++Signed-off-by: Nhan Nguyen <nhan.nguyen-thanh@banvien.com.vn>
++---
++ drivers/gpu/drm/rcar-du/rcar_du_crtc.c | 3 +--
++ 1 file changed, 1 insertion(+), 2 deletions(-)
++
++diff --git a/drivers/gpu/drm/rcar-du/rcar_du_crtc.c b/drivers/gpu/drm/rcar-du/rcar_du_crtc.c
++index 4fcb1bb1b843..36f1c026adea 100644
++--- a/drivers/gpu/drm/rcar-du/rcar_du_crtc.c
+++++ b/drivers/gpu/drm/rcar-du/rcar_du_crtc.c
++@@ -676,8 +676,7 @@ static void rcar_du_crtc_update_planes(struct rcar_du_crtc *rcrtc)
++ 				    (dptsr_planes << 16) | dptsr_planes);
++ 		rcrtc->group->dptsr_planes = dptsr_planes;
++ 
++-		if (rcrtc->group->used_crtcs)
++-			rcar_du_group_restart(rcrtc->group);
+++		rcar_du_group_restart(rcrtc->group);
++ 	}
++ 
++ 	/* Restart the group if plane sources have changed. */
++-- 
++2.25.1
++
+diff --git a/meta-rzg1/recipes-kernel/linux/linux-renesas/patches/hdmi_patches/0003-drm-rcar-du-Fix-VDSR-register-calculation.patch b/meta-rzg1/recipes-kernel/linux/linux-renesas/patches/hdmi_patches/0003-drm-rcar-du-Fix-VDSR-register-calculation.patch
+new file mode 100755
+index 00000000..2d6c86f1
+--- /dev/null
++++ b/meta-rzg1/recipes-kernel/linux/linux-renesas/patches/hdmi_patches/0003-drm-rcar-du-Fix-VDSR-register-calculation.patch
+@@ -0,0 +1,52 @@
++From 1e3a2b3f131cfc905c85aa485eff0352226ce5f5 Mon Sep 17 00:00:00 2001
++From: Koji Matsuoka <koji.matsuoka.xm@renesas.com>
++Date: Mon, 9 Apr 2018 23:13:01 +0700
++Subject: [PATCH 135/174] drm: rcar-du: Fix VDSR register calculation
++
++When the setting value of VDSR register is a negative value,
++The setting value of VDSR register is rounded at 1 by
++specification of H/W.
++
++Signed-off-by: Koji Matsuoka <koji.matsuoka.xm@renesas.com>
++Signed-off-by: Hung Dong <hung.dong.xd@rvc.renesas.com>
++Signed-off-by: Duy Dang <duy.dang.yb@renesas.com>
++Signed-off-by: Nhan Nguyen <nhan.nguyen-thanh@banvien.com.vn>
++---
++ drivers/gpu/drm/rcar-du/rcar_du_crtc.c | 14 +++++++++-----
++ 1 file changed, 9 insertions(+), 5 deletions(-)
++
++diff --git a/drivers/gpu/drm/rcar-du/rcar_du_crtc.c b/drivers/gpu/drm/rcar-du/rcar_du_crtc.c
++index 36f1c026adea..2a4e9dc8223d 100644
++--- a/drivers/gpu/drm/rcar-du/rcar_du_crtc.c
+++++ b/drivers/gpu/drm/rcar-du/rcar_du_crtc.c
++@@ -218,6 +218,7 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
++ 	unsigned int hdse_offset;
++ 	u32 dsmr;
++ 	u32 escr;
+++	int vdsr, vder;
++ 
++ 	if (rcdu->info->dpll_mask & (1 << rcrtc->index)) {
++ 		unsigned long target = mode_clock;
++@@ -312,11 +312,14 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
++ 					mode->hsync_start - 1);
++ 	rcar_du_crtc_write(rcrtc, HCR,  mode->htotal - 1);
++ 
++-	rcar_du_crtc_write(rcrtc, VDSR, mode->crtc_vtotal -
++-					mode->crtc_vsync_end - 2);
++-	rcar_du_crtc_write(rcrtc, VDER, mode->crtc_vtotal -
++-					mode->crtc_vsync_end +
++-					mode->crtc_vdisplay - 2);
+++	vdsr = mode->crtc_vtotal - mode->crtc_vsync_end - 2;
+++	vder = mode->crtc_vtotal - mode->crtc_vsync_end + mode->crtc_vdisplay - 2;
+++	if (vdsr < 1) {
+++		vder = vder - vdsr + 1;
+++		vdsr = 1;
+++	}
+++	rcar_du_crtc_write(rcrtc, VDSR, vdsr);
+++	rcar_du_crtc_write(rcrtc, VDER, vder);
++ 	rcar_du_crtc_write(rcrtc, VSPR, mode->crtc_vtotal -
++ 					mode->crtc_vsync_end +
++ 					mode->crtc_vsync_start - 1);
++-- 
++2.25.1
++
+diff --git a/meta-rzg1/recipes-kernel/linux/linux-renesas/patches/hdmi_patches/0004-drm-rcar-du-Fix-byte-alignment-check-for-pitch.patch b/meta-rzg1/recipes-kernel/linux/linux-renesas/patches/hdmi_patches/0004-drm-rcar-du-Fix-byte-alignment-check-for-pitch.patch
+new file mode 100755
+index 00000000..8d901c83
+--- /dev/null
++++ b/meta-rzg1/recipes-kernel/linux/linux-renesas/patches/hdmi_patches/0004-drm-rcar-du-Fix-byte-alignment-check-for-pitch.patch
+@@ -0,0 +1,38 @@
++From 8baa8668c2bf6ab8e4139508d7c878ad6aa30477 Mon Sep 17 00:00:00 2001
++From: Koji Matsuoka <koji.matsuoka.xm@renesas.com>
++Date: Thu, 29 Oct 2020 19:26:24 +0700
++Subject: [PATCH 136/174] drm: rcar-du: Fix byte alignment check for pitch
++
++This patch corrects the byte alignment check for pitch when
++creating a frame buffer object. The alignment value in case
++of using separation format (NV16, NV12 and NV21) is corrected
++to the right value.
++
++Signed-off-by: Koji Matsuoka <koji.matsuoka.xm@renesas.com>
++Signed-off-by: Hung Dong <hung.dong.xd@rvc.renesas.com>
++Signed-off-by: Duy Dang <duy.dang.yb@renesas.com>
++Signed-off-by: Nhan Nguyen <nhan.nguyen-thanh@banvien.com.vn>
++---
++ drivers/gpu/drm/rcar-du/rcar_du_kms.c | 5 ++++-
++ 1 file changed, 4 insertions(+), 1 deletion(-)
++
++diff --git a/drivers/gpu/drm/rcar-du/rcar_du_kms.c b/drivers/gpu/drm/rcar-du/rcar_du_kms.c
++index 7015e22872bb..783957f4aa53 100644
++--- a/drivers/gpu/drm/rcar-du/rcar_du_kms.c
+++++ b/drivers/gpu/drm/rcar-du/rcar_du_kms.c
++@@ -375,8 +375,11 @@ rcar_du_fb_create(struct drm_device *dev, struct drm_file *file_priv,
++ 
++ 		if (rcar_du_needs(rcdu, RCAR_DU_QUIRK_ALIGN_128B))
++ 			align = 128;
+++		else if ((format->fourcc == DRM_FORMAT_NV12) ||
+++			(format->fourcc == DRM_FORMAT_NV21))
+++			align = 16;
++ 		else
++-			align = 16 * bpp;
+++			align = (16 * bpp) / format->planes;;
++ 	} else {
++ 		/*
++ 		 * On Gen3 the memory interface is handled by the VSP that
++-- 
++2.25.1
++
+diff --git a/meta-rzg1/recipes-kernel/linux/linux-renesas/patches/hdmi_patches/0005-gpu-drm-bridge-adv7511-Change-CEC-device-s-i2c-addre.patch b/meta-rzg1/recipes-kernel/linux/linux-renesas/patches/hdmi_patches/0005-gpu-drm-bridge-adv7511-Change-CEC-device-s-i2c-addre.patch
+new file mode 100755
+index 00000000..578877e2
+--- /dev/null
++++ b/meta-rzg1/recipes-kernel/linux/linux-renesas/patches/hdmi_patches/0005-gpu-drm-bridge-adv7511-Change-CEC-device-s-i2c-addre.patch
+@@ -0,0 +1,80 @@
++From aa6094dc86be6cb5ae8a61d848e269ced015a3ce Mon Sep 17 00:00:00 2001
++From: Duy Bao Dang <duy.dang.yb@renesas.com>
++Date: Thu, 23 Dec 2021 14:27:22 +0700
++Subject: [PATCH 152/203] gpu: drm: bridge: adv7511: Change CEC device's i2c
++ address
++
++Change CEC device's i2c address from 0x3c to 0x3d to avoid
++conflicting with that of OV5640 camera.
++
++Signed-off-by: Duy Bao Dang <duy.dang.yb@renesas.com>
++Signed-off-by: Nhan Nguyen <nhan.nguyen-thanh@banvien.com.vn>
++---
++ drivers/gpu/drm/bridge/adv7511/adv7511_drv.c | 30 +++++++++++++++++++-
++ 1 file changed, 29 insertions(+), 1 deletion(-)
++
++diff --git a/drivers/gpu/drm/bridge/adv7511/adv7511_drv.c b/drivers/gpu/drm/bridge/adv7511/adv7511_drv.c
++index 430c5e8f0388..e73026d855da 100644
++--- a/drivers/gpu/drm/bridge/adv7511/adv7511_drv.c
+++++ b/drivers/gpu/drm/bridge/adv7511/adv7511_drv.c
++@@ -11,6 +11,7 @@
++ #include <linux/module.h>
++ #include <linux/of_device.h>
++ #include <linux/slab.h>
+++#include <linux/of.h>
++ 
++ #include <media/cec.h>
++ 
++@@ -22,6 +23,11 @@
++ 
++ #include "adv7511.h"
++ 
+++/* Normal cec_i2c_addr=0x78 but change to 0x7a
+++ * alternative address to avoid conflict
+++ */
+++static const int cec_i2c_addr_alt = 0x7a;
+++
++ /* ADI recommended values for proper operation. */
++ static const struct reg_sequence adv7511_fixed_registers[] = {
++ 	{ 0x98, 0x03 },
++@@ -1059,7 +1065,17 @@ static int adv7511_init_cec_regmap(struct adv7511 *adv)
++ {
++ 	int ret;
++ 
++-	adv->i2c_cec = i2c_new_ancillary_device(adv->i2c_main, "cec",
+++	/*
+++	 * When cec device is probe in RZ/G1MN, it will use 0x3d i2c address
+++	 * instead of common 0x3c i2c address to avoid conflict with camera
+++	 * OV5640 address
+++	 */
+++	if (of_machine_is_compatible("renesas,r8a7743") ||
+++		of_machine_is_compatible("renesas,r8a7744"))
+++		adv->i2c_cec = i2c_new_ancillary_device(adv->i2c_main, "cec",
+++						0x3d);
+++	else
+++		adv->i2c_cec = i2c_new_ancillary_device(adv->i2c_main, "cec",
++ 						ADV7511_CEC_I2C_ADDR_DEFAULT);
++ 	if (IS_ERR(adv->i2c_cec))
++ 		return PTR_ERR(adv->i2c_cec);
++@@ -1271,6 +1287,18 @@ static int adv7511_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
++ 	if (ret)
++ 		goto err_i2c_unregister_packet;
++ 
+++	/*
+++	 * Use alternative address for CEC Memory address in case of
+++	 * RZ/G1{M,N} boards to avoid possible conflict to OV5640 address
+++	 */
+++	if (of_machine_is_compatible("renesas,r8a7743") ||
+++		of_machine_is_compatible("renesas,r8a7744"))
+++		regmap_write(adv7511->regmap, ADV7511_REG_CEC_I2C_ADDR,
+++				cec_i2c_addr_alt);
+++	else
+++		regmap_write(adv7511->regmap, ADV7511_REG_CEC_I2C_ADDR,
+++			adv7511->i2c_cec->addr << 1);
+++
++ 	INIT_WORK(&adv7511->hpd_work, adv7511_hpd_work);
++ 
++ 	if (i2c->irq) {
++-- 
++2.25.1
++
+diff --git a/meta-rzg1/recipes-kernel/linux/linux-renesas/rzg1_hdmi_patches.scc b/meta-rzg1/recipes-kernel/linux/linux-renesas/rzg1_hdmi_patches.scc
+new file mode 100644
+index 00000000..edc56a22
+--- /dev/null
++++ b/meta-rzg1/recipes-kernel/linux/linux-renesas/rzg1_hdmi_patches.scc
+@@ -0,0 +1,6 @@
++# These patches be applied to support HDMI feature of G1 devices
++patch patches/hdmi_patches/0001-drm-i2c-Add-ch7036-driver.patch
++patch patches/hdmi_patches/0002-drm-rcar-du-Fix-DU1-restart-condition.patch
++patch patches/hdmi_patches/0003-drm-rcar-du-Fix-VDSR-register-calculation.patch
++patch patches/hdmi_patches/0004-drm-rcar-du-Fix-byte-alignment-check-for-pitch.patch
++patch patches/hdmi_patches/0005-gpu-drm-bridge-adv7511-Change-CEC-device-s-i2c-addre.patch
+diff --git a/meta-rzg1/recipes-kernel/linux/linux-renesas_5.10.bbappend b/meta-rzg1/recipes-kernel/linux/linux-renesas_5.10.bbappend
+index 5336d902..3372d51e 100644
+--- a/meta-rzg1/recipes-kernel/linux/linux-renesas_5.10.bbappend
++++ b/meta-rzg1/recipes-kernel/linux/linux-renesas_5.10.bbappend
+@@ -8,6 +8,7 @@ RT2870_BIN = "https://git.kernel.org/pub/scm/linux/kernel/git/firmware/linux-fir
+ SRC_URI_append = " \
+ 	file://rzg1_common.cfg \
+ 	file://patches.scc \
++	file://rzg1_hdmi_patches.scc \
+ 	${USB3_FW} \
+ 	${REGULATORY_DB} \
+ 	${REGULATORY_DB_P7S} \
+-- 
+2.25.1
+
