@@ -19,6 +19,10 @@ update_issue() {
       BSP_SOC="RZG2L"
       BSP_BOARD="RZG2L-SMARC-EVK"
       ;;
+    ly-rzg2l)
+      BSP_SOC="RZG2L"
+      BSP_BOARD="RZG2L-LY"
+      ;;
     rzg2l-dev)
       BSP_SOC="RZG2L"
       BSP_BOARD="RZG2L-DEV"
@@ -175,6 +179,7 @@ export HOST_EXTRACFLAGS="-I${OECORE_NATIVE_SYSROOT}/usr/include/ -L${OECORE_NATI
 WKS_DEFAULT_FILE = "rz-image-bootpart-mmc.wks"
 WKS_DEFAULT_FILE_rzg2l = "rz-image-bootpart-esd.wks"
 WKS_DEFAULT_FILE_smarc-rzg2l = "rz-image-bootpart-esd-pmic.wks"
+WKS_DEFAULT_FILE_ly-rzg2l = "rz-image-bootpart-esd-pmic.wks"
 
 WKS_FILE ?= "${@oe.utils.conditional("WKS_SUPPORT", "1", "${WKS_DEFAULT_FILE}", "", d)}"
 

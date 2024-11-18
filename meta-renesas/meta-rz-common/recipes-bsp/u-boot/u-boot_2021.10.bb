@@ -3,9 +3,9 @@ require u-boot.inc
 
 DEPENDS += "bc-native dtc-native"
 
-UBOOT_URL = "git://github.com/renesas-rz/renesas-u-boot-cip.git"
-BRANCH = "v2021.10/rz"
+UBOOT_URL = "git://github.com/zhangyunduan-ly/renesas-u-boot-cip.git"
+BRANCH = "develop-ly"
 
 SRC_URI = "${UBOOT_URL};branch=${BRANCH}"
-SRCREV = "5141064c1552accaf69c6f509bf21b2063b9cff5"
+SRCREV = "611d37eee938fb9da4992db8c12808cb47a9c942"
 PV = "v2021.10+git${SRCPV}"

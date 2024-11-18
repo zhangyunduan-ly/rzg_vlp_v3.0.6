@@ -13,6 +13,7 @@ Currently the following boards and MPUs are supported:
 - Board: HIHOPE-RZG2N / MPU: R8A774B1 (RZG2N)
 - Board: HIHOPE-RZG2H / MPU: R8A774E1 (RZG2H)
 - Board: RZG2L SMARC Evaluation Kit / MPU: R9A07G044L (RZ/G2L)
+- Board: RZG2L LINAYNG Core Board / MPU: R9A07G044L (RZ/G2L)
 - Board: RZG2L Development Evaluation Kit / MPU: R9A07G044L (RZ/G2L)
 - Board: RZG2LC SMARC Evaluation Kit / MPU: R9A07G044C (RZ/G2LC)
 - Board: RZG2LC Development Evaluation Kit / MPU: R9A07G044C (RZ/G2L)
@@ -194,7 +195,7 @@ Currently, there are 2 types of build procedure supported in below description:
 |RZ/G2M     |rzg2h     |hihope-rzg2m            |
 |RZ/G2N     |rzg2h     |hihope-rzg2n            |
 |RZ/G2E     |rzg2h     |ek874                   |
-|RZ/G2L     |rzg2l     |smarc-rzg2l, rzg2l-dev  |
+|RZ/G2L     |rzg2l     |smarc-rzg2l, ly-rzg2l, rzg2l-dev  |
 |RZ/G2LC    |rzg2l     |smarc-rzg2lc, rzg2lc-dev|
 |RZ/G2UL    |rzg2l     |smarc-rzg2ul, rzg2ul-dev|
 |RZ/V2L     |rzv2l     |smarc-rzv2l, rzv2l-dev  |
@@ -217,7 +218,7 @@ Currently, there are 2 types of build procedure supported in below description:
 * RZ/G2M:  hihope-rzg2m
 * RZ/G2N:  hihope-rzg2n
 * RZ/G2E:  ek874
-* RZ/G2L:  smarc-rzg2l, rzg2l-dev
+* RZ/G2L:  smarc-rzg2l, ly-rzg2l, rzg2l-dev
 * RZ/G2LC: smarc-rzg2lc, rzg2lc-dev
 * RZ/G2UL: smarc-rzg2ul, rzg2ul-dev
 * RZ/V2L:  smarc-rzv2l, rzv2l-dev

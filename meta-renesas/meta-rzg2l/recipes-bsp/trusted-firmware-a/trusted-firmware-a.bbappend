@@ -3,6 +3,10 @@ PLATFORM_smarc-rzg2l = "g2l"
 EXTRA_FLAGS_smarc-rzg2l = "BOARD=smarc_2"
 PMIC_EXTRA_FLAGS_smarc-rzg2l = "BOARD=smarc_pmic_2"
 
+PLATFORM_ly-rzg2l = "g2l"
+EXTRA_FLAGS_ly-rzg2l = "BOARD=smarc_1"
+PMIC_EXTRA_FLAGS_ly-rzg2l = "BOARD=smarc_pmic_1"
+
 PLATFORM_rzg2l-dev = "g2l"
 EXTRA_FLAGS_rzg2l-dev = "BOARD=dev15_4"
 

@@ -11,18 +11,18 @@ inherit deploy
 
 S = "${WORKDIR}/git"
 
-BRANCH = "v2.9/rz"
+BRANCH = "develop-ly"
 
 SRC_URI = " \
-	git://github.com/renesas-rz/rzg_trusted-firmware-a.git;branch=${BRANCH};protocol=https \
+	git://github.com/zhangyunduan-ly/rzg_trusted-firmware-a.git;branch=${BRANCH};protocol=https \
 "
 
-SRCREV = "cc18695622e5637ec70ee3ae8eb5e83b09d13804"
+SRCREV = "b770b2863e6ffb564bdc82784c2d2b696d81b416"
 
 PV = "v2.9+git"
 
 COMPATIBLE_MACHINE_rzg2h = "(ek874|hihope-rzg2m|hihope-rzg2n|hihope-rzg2h)"
-COMPATIBLE_MACHINE_rzg2l = "(smarc-rzg2l|rzg2l-dev|smarc-rzg2lc|rzg2lc-dev|smarc-rzg2ul|rzg2ul-dev|smarc-rzv2l|rzv2l-dev)"
+COMPATIBLE_MACHINE_rzg2l = "(smarc-rzg2l|ly-rzg2l|rzg2l-dev|smarc-rzg2lc|rzg2lc-dev|smarc-rzg2ul|rzg2ul-dev|smarc-rzv2l|rzv2l-dev)"
 
 PLATFORM ?= "rzg"
 
