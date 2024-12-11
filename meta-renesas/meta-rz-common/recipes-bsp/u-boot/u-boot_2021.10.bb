@@ -7,5 +7,5 @@ UBOOT_URL = "git://github.com/zhangyunduan-ly/renesas-u-boot-cip.git"
 BRANCH = "develop-ly"
 
 SRC_URI = "${UBOOT_URL};branch=${BRANCH}"
-SRCREV = "611d37eee938fb9da4992db8c12808cb47a9c942"
+SRCREV = "6692e85af9ad3a53190404e2f3a8f0756599e0c5"
 PV = "v2021.10+git${SRCPV}"
