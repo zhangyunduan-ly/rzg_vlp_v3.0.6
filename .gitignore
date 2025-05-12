@@ -1,0 +1,17 @@
+/build-bsp/cache
+/build-bsp/sstate-cache
+/build-bsp/tmp
+/build-bsp/bitbake-cookerdaemon.log
+/build-bsp/workspace
+
+/build-minimal/cache
+/build-minimal/sstate-cache
+/build-minimal/tmp
+/build-minimal/bitbake-cookerdaemon.log
+
+/build-minimal-docker/cache
+/build-minimal-docker/sstate-cache
+/build-minimal-docker/tmp
+/build-minimal-docker/bitbake-cookerdaemon.log
+
+/downloads

@@ -1,0 +1,251 @@
+//rtl8821c version = 54
+// Format:							
+//							
+// 		Note: The order of the tables MUST match the definition in WLAN driver.
+//							
+//		Power Limit Table Parameter Definition					
+//
+//		@@Ver=2.0
+//
+//		Version 2.0 support to add regulations in the Power Limit Table form column 4.                  
+//		Customers can add new regulations by using DomainCode or CountryConde(ISO 3166-2).
+//
+//		Syntax:		
+//			1. @@DomainCode=xx,  Regulation=xx
+//			2. @@CountryCode=xx,  Regulation=xx
+//
+//		ex.
+//			   @@DomainCode=0x2B, Regulation=IC	//RTK define domain code 0x2B for IC in colume 4
+//			   @@DomainCode=0x28, Regulation=KCC	//RTK define domain code 0x28 for KCC in colume 5
+//			   @@DomainCode=0x62, Regulation=C6	//Customer define domain code 0x62 for C6 in colume 6
+//			   @@CountryCode=US, Regulation=C6	//Customer define country code US for C6 in colume 6
+//			   @@CountryCode=GB, Regulation=C7	//Customer define country code GB for C7 in colume 7
+//
+//		One DomainCode MUST has only one Regulation in Table.
+//		One CountyCode MUST has only one Regulation in Table.
+//
+//		Error Syntax:                                    
+//
+//			   @@DomainCode=0x2D, Regulation=C6	
+//			   @@DomainCode=0x2D, Regulation=C7
+//			   @@CountryCode=US, Regulation=C8	
+//			   @@CountryCode=US, Regulation=C9
+//
+//		
+//
+//		Band:			    2.4G/5G		
+//		Bandwidth:		20/40/80/160 MHZ			
+//		RF Path:		1/2/3/4 Transmit RF			
+//		Rate Section:	CCK/OFDM/HT/VHT				
+//		Regulation: 	FCC/ETSI/MKK/IC/KCC/...				
+//							
+//		Description:					
+//		1. IF in 1T test
+//		2. power is real dBm.					
+//		3. // is for comment.					
+//							
+// 		NA is non-release channel.					
+//		WW is world wide limited.					
+//							
+@@Ver=2.0
+@@DomainCode=0x2B, Regulation=IC
+@@DomainCode=0x28, Regulation=KCC
+@@DomainCode=0x45, Regulation=ACMA
+@@DomainCode=0x2D, Regulation=CHILE
+@@DomainCode=0x36, Regulation=UKRAINE
+//					
+//Table 1: ===========================================							
+//							
+##	2.4G, 20M, 1T, CCK, //(1M;2M;5.5M;11M)						
+##	START
+##	#8#	FCC	ETSI	MKK	IC	KCC	ACMA	CHILE	UKRAINE
+CH01	15	15	17	15	17	15	15	15
+CH02	16	15	17	16	17	15	16	15
+CH03	16	15	17	16	17	15	16	15
+CH04	16	15	17	16	17	15	16	15
+CH05	16	15	17	16	17	15	16	15
+CH06	16	15	17	16	17	15	16	15
+CH07	16	15	17	16	17	15	16	15
+CH08	16	15	17	16	17	15	16	15
+CH09	16	15	17	16	17	15	16	15
+CH10	16	15	17	16	17	15	16	15
+CH11	16	15	17	16	17	15	16	15
+CH12	12	15	17	12	17	15	12	15
+CH13	8	15	17	8	17	15	8	15
+CH14	NA	NA	17	NA	NA	NA	NA	NA
+##	END						
+//							
+//Table 2: ===========================================							
+//							
+##	2.4G, 20M, 1T, OFDM, //(6M;9M;12M;18M;24M;36M;48M;54M)						
+##	START
+##	#8#	FCC	ETSI	MKK	IC	KCC	ACMA	CHILE	UKRAINE
+CH01	15	15	17	15	16	15	15	15
+CH02	16	15	17	16	17	15	16	15
+CH03	17	15	17	17	17	15	17	15
+CH04	17	15	17	17	17	15	17	15
+CH05	17	15	17	17	17	15	17	15
+CH06	17	15	17	17	17	15	17	15
+CH07	17	15	17	17	17	15	17	15
+CH08	17	15	17	17	17	15	17	15
+CH09	17	15	17	17	17	15	17	15
+CH10	16	15	17	16	17	15	16	15
+CH11	15	15	17	15	17	15	15	15
+CH12	14	15	17	14	17	15	14	15
+CH13	8	15	17	8	16	15	8	15
+CH14	NA	NA	NA	NA	NA	NA	NA	NA
+##	END						
+//							
+//Table 3: ===========================================							
+//							
+##	2.4G, 20M, 1T, HT, //(MCS0~MCS7)						
+##	START
+##	#8#	FCC	ETSI	MKK	IC	KCC	ACMA	CHILE	UKRAINE
+CH01	13	15	17	13	16	15	13	15
+CH02	15	15	17	15	17	15	15	15
+CH03	16	15	17	16	17	15	16	15
+CH04	17	15	17	17	17	15	17	15
+CH05	17	15	17	17	17	15	17	15
+CH06	17	15	17	17	17	15	17	15
+CH07	17	15	17	17	17	15	17	15
+CH08	17	15	17	17	17	15	17	15
+CH09	16	15	17	16	17	15	16	15
+CH10	15	15	17	15	17	15	15	15
+CH11	14	15	17	14	17	15	14	15
+CH12	13	15	17	13	17	15	13	15
+CH13	6	15	17	6	16	15	6	15
+CH14	NA	NA	NA	NA	NA	NA	NA	NA
+##	END						
+//							
+//Table 4: ===========================================							
+//TX power is mainly limited by IEEE TX mask                 							
+##	2.4G, 40M, 1T, HT, //(MCS0~MCS7)						
+##	START
+##	#8#	FCC	ETSI	MKK	IC	KCC	ACMA	CHILE	UKRAINE
+CH01	NA	NA	NA	NA	NA	NA	NA	NA
+CH02	NA	NA	NA	NA	NA	NA	NA	NA
+CH03	13	15	15	13	15	15	13	15
+CH04	13	15	15	13	15	15	13	15
+CH05	15	15	15	15	15	15	15	15
+CH06	15	15	15	15	15	15	15	15
+CH07	15	15	15	15	15	15	15	15
+CH08	13	15	15	13	15	15	13	15
+CH09	13	15	15	13	15	15	13	15
+CH10	14	15	15	14	15	15	14	15
+CH11	10	15	15	10	15	15	10	15
+CH12	NA	NA	NA	NA	NA	NA	NA	NA
+CH13	NA	NA	NA	NA	NA	NA	NA	NA
+CH14	NA	NA	NA	NA	NA	NA	NA	NA
+##	END						
+//							
+//Table 5: ===========================================							
+//							
+##	5G, 20M, 1T, OFDM, //(6M;9M;12M;18M;24M;36M;48M;54M)						
+##	START
+##	#8#	FCC	ETSI	MKK	IC	KCC	ACMA	CHILE	UKRAINE
+//5G Band 1							
+CH36	15.5	16	16.5	15.5	14.5	16	14.5	13.5
+CH40	16.5	16	16.5	15.5	14	16	14.5	13.5
+CH44	16.5	16	16.5	15.5	14	16	15	13.5
+CH48	15.5	16	16.5	15.5	13.5	16	15	13.5
+//5G Band 2       	  						
+CH52	16.5	16	16.5	16	8	16	15	13.5
+CH56	16.5	16	16.5	16	16.5	16	15	13.5
+CH60	16.5	16	16.5	16	16.5	16	15	13.5
+CH64	15	16	16.5	15	16.5	16	14.5	13.5
+//5G Band 3           							
+CH100	15	16	16.5	15	16.5	16	15	13.5
+CH104	16.5	16	16.5	16.5	16.5	16	15	13.5
+CH108	16.5	16	16.5	16.5	16.5	16	15	13.5
+CH112	16.5	16	16.5	16.5	16.5	16	15	13.5
+CH116	16.5	16	16.5	16.5	16.5	16	15	13.5
+CH120	16.5	16	16.5	NA	16.5	NA	15	13.5
+CH124	16.5	16	16.5	NA	16.5	NA	15	13.5
+CH128	16.5	16	16.5	NA	WW	NA	15	13.5
+CH132	16.5	16	16.5	16.5	WW	16	15	13.5
+CH136	16.5	16	16.5	16.5	WW	16	15	NA
+CH140	15.5	16	16.5	15.5	WW	16	15	NA
+CH144	15	NA	NA	15	WW	NA	15	NA
+//5G Band 4       	  						
+CH149	16.5	WW	NA	15	16.5	16.5	15	13.5
+CH153	16.5	WW	NA	16.5	16.5	16.5	15	13.5
+CH157	16.5	WW	NA	16.5	16.5	16.5	15	13.5
+CH161	16.5	WW	NA	16.5	15.5	16.5	15	13.5
+CH165	16.5	WW	NA	16.5	WW	16.5	15	13.5
+##	END						
+//							
+//Table 6: ======================================							
+//							
+##	5G, 20M, 1T, HT, //(MCS0~MCS7)						
+##	START
+##	#8#	FCC	ETSI	MKK	IC	KCC	ACMA	CHILE	UKRAINE
+//5G Band 1							
+CH36	15	16	16.5	15	13.5	16	15	13.5
+CH40	16.5	16	16.5	15.5	14.5	16	15	13.5
+CH44	16.5	16	16.5	15.5	14.5	16	15	13.5
+CH48	16.5	16	16.5	15.5	13	16	15	13.5
+//5G Band 2 				  			 
+CH52	16.5	16	16.5	16	3.5	16	15	13.5
+CH56	16.5	16	16.5	16	16.5	16	15	13.5
+CH60	16.5	16	16.5	16	16.5	16	15	13.5
+CH64	15	16	16.5	15	16.5	16	15	13.5
+//5G Band 3 				  			 
+CH100	15	16	16.5	15	16.5	16	15	13.5
+CH104	16.5	16	16.5	16.5	16.5	16	15	13.5
+CH108	16.5	16	16.5	16.5	16.5	16	15	13.5
+CH112	16.5	16	16.5	16.5	16.5	16	15	13.5
+CH116	16.5	16	16.5	16.5	16.5	16	15	13.5
+CH120	16.5	16	16.5	NA	16.5	NA	15	13.5
+CH124	16.5	16	16.5	NA	16.5	NA	15	13.5
+CH128	16.5	16	16.5	NA	WW	NA	15	13.5
+CH132	16.5	16	16.5	16.5	WW	16	15	13.5
+CH136	16.5	16	16.5	16.5	WW	16	15	NA
+CH140	14.5	16	16.5	14.5	WW	16	15	NA
+CH144	13.5	NA	NA	13.5	WW	NA	15	NA
+//5G Band 4 				  			 
+CH149	16.5	WW	NA	16.5	16.5	16.5	15	13.5
+CH153	16.5	WW	NA	16.5	16.5	16.5	15	13.5
+CH157	16.5	WW	NA	16.5	16.5	16.5	15	13.5
+CH161	16.5	WW	NA	16.5	15.5	16.5	15	13.5
+CH165	16.5	WW	NA	16.5	WW	16.5	15	13.5
+##	END						
+//							
+//Table 7: ===========================================							
+//                							
+##	5G, 40M, 1T, HT, //(MCS0~MCS7)						
+##	START
+##	#8#	FCC	ETSI	MKK	IC	KCC	ACMA	CHILE	UKRAINE
+//5G Band 1							
+CH38	11	16	16	11	13	16	11	13.5
+CH46	16	16	16	16	14	16	15	13.5
+//5G Band 2       	  								
+CH54	16	16	16	16	11	16	15	13.5
+CH62	11.5	16	16	11.5	15.5	16	11.5	13.5
+//5G Band 3       							
+CH102	10.5	16	16	10.5	15.5	16	15	13.5
+CH110	16	16	16	16	16	16	15	13.5
+CH118	16	16	16	NA	16	NA	15	13.5
+CH126	16	16	16	NA	WW	NA	15	13.5
+CH134	16	16	16	16	WW	16	15	NA
+CH142	14.5	NA	NA	14.5	WW	NA	15	NA
+//5G Band 4         							
+CH151	16	WW	NA	16	13.5	16	15	13.5
+CH159	16	WW	NA	16	13	16	15	13.5
+##	END       						
+//                							
+//Table 8: ===========================================							
+//							
+##	5G, 80M, 1T, VHT, //(MCS0~MCS9)						
+##	START
+##	#8#	FCC	ETSI	MKK	IC	KCC	ACMA	CHILE	UKRAINE
+//5G Band 1							
+CH42	9.5	16	14	9.5	12.5	16	9.5	13.5
+//5G Band 2       	  						
+CH58	11	16	14	11	14	16	11	13.5
+//5G Band 3       	  						
+CH106	9	16	16	9	15	16	15	13.5
+CH122	16	16	16	NA	13	NA	15	13.5
+CH138	14	NA	NA	14	WW	NA	15	NA
+//5G Band 4       	  						
+CH155	16	WW	NA	16	13.5	16	15	13.5
+##	END									

@@ -1,0 +1,10 @@
+[Unit]
+Description=USB Automount
+After=dev-%i.device
+
+[Service]
+ExecStart=/bin/sh /etc/auto_usb.sh
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target

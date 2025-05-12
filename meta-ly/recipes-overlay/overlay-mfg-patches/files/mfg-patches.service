@@ -1,0 +1,16 @@
+[Unit]
+Description=Manufactor patches
+After=multi-user.target
+Requires=multi-user.target
+ConditionPathExists=/home/root/mfg-patches/install.sh
+
+[Service]
+User=root
+Type=oneshot
+ExecStart=/bin/sh /home/root/mfg-patches/install.sh
+ExecStart=/bin/rm -rf /home/root/mfg-patches
+ExecStart=/bin/systemctl disable mfg-patches
+ExecStart=/sbin/reboot
+
+[Install]
+WantedBy=multi-user.target
