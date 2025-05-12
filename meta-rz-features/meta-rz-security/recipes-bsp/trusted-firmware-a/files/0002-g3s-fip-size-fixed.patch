@@ -1,0 +1,13 @@
+diff --git a/plat/renesas/rz/soc/g3s/include/rz_soc_def.h b/plat/renesas/rz/soc/g3s/include/rz_soc_def.h
+index a919e6e..1f12c7a 100644
+--- a/plat/renesas/rz/soc/g3s/include/rz_soc_def.h
++++ b/plat/renesas/rz/soc/g3s/include/rz_soc_def.h
+@@ -71,7 +71,7 @@
+  * to store a 128K BL2 image.
+  */
+ #define RZG3S_BL2_SIZE_MAX				UL(0x00064000)
+-#define RZG3S_FIP_SIZE_MAX				UL(0x00140000)
++#define RZG3S_FIP_SIZE_MAX				UL(0x00200000)
+ 
+ #define RZG3S_SPIROM_FIP_BASE			(RZG3S_SPIROM_BASE + RZG3S_BL2_SIZE_MAX)
+ #define RZG3S_EMMC_FIP_BASE				(RZG3S_BL2_SIZE_MAX)

@@ -1,0 +1,13 @@
+diff --git a/arch/arm64/boot/dts/renesas/r9a08g045.dtsi b/arch/arm64/boot/dts/renesas/r9a08g045.dtsi
+index 72e9665..7e64434 100644
+--- a/arch/arm64/boot/dts/renesas/r9a08g045.dtsi
++++ b/arch/arm64/boot/dts/renesas/r9a08g045.dtsi
+@@ -31,7 +31,7 @@
+ 		optee {
+ 			compatible = "linaro,optee-tz";
+ 			method = "smc";
+-			status = "disabled";
++			status = "okay";
+ 		};
+ 	};
+ 

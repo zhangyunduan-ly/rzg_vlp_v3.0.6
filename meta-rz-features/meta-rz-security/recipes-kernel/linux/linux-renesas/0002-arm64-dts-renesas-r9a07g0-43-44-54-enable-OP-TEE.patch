@@ -1,0 +1,39 @@
+diff --git a/arch/arm64/boot/dts/renesas/r9a07g043.dtsi b/arch/arm64/boot/dts/renesas/r9a07g043.dtsi
+index 108468b..f176c45 100644
+--- a/arch/arm64/boot/dts/renesas/r9a07g043.dtsi
++++ b/arch/arm64/boot/dts/renesas/r9a07g043.dtsi
+@@ -46,7 +46,7 @@
+ 		optee {
+ 			compatible = "linaro,optee-tz";
+ 			method = "smc";
+-			status = "disabled";
++			status = "okay";
+ 		};
+ 	};
+ 
+diff --git a/arch/arm64/boot/dts/renesas/r9a07g044.dtsi b/arch/arm64/boot/dts/renesas/r9a07g044.dtsi
+index d29e905..276615f 100644
+--- a/arch/arm64/boot/dts/renesas/r9a07g044.dtsi
++++ b/arch/arm64/boot/dts/renesas/r9a07g044.dtsi
+@@ -46,7 +46,7 @@
+ 		optee {
+ 			compatible = "linaro,optee-tz";
+ 			method = "smc";
+-			status = "disabled";
++			status = "okay";
+ 		};
+ 	};
+ 
+diff --git a/arch/arm64/boot/dts/renesas/r9a07g054.dtsi b/arch/arm64/boot/dts/renesas/r9a07g054.dtsi
+index a3022d1..474bae8 100644
+--- a/arch/arm64/boot/dts/renesas/r9a07g054.dtsi
++++ b/arch/arm64/boot/dts/renesas/r9a07g054.dtsi
+@@ -46,7 +46,7 @@
+ 		optee {
+ 			compatible = "linaro,optee-tz";
+ 			method = "smc";
+-			status = "disabled";
++			status = "okay";
+ 		};
+ 	};
+ 
