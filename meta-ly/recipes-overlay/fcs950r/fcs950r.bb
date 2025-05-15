@@ -8,7 +8,7 @@ SRC_URI = "file://PHY_REG_PG.txt \
 
 S = "${WORKDIR}"
 
-do_install() {
+do_install_append() {
 	install -d ${D}/lib/firmware
 	install -m 0644 ${WORKDIR}/PHY_REG_PG.txt ${D}/lib/firmware/PHY_REG_PG.txt
 	install -m 0644 ${WORKDIR}/TXPWR_LMT.txt ${D}/lib/firmware/TXPWR_LMT.txt
