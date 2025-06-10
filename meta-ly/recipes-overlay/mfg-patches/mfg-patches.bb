@@ -9,7 +9,7 @@ S = "${WORKDIR}"
 
 do_install() {
 	install -d ${D}${systemd_unitdir}/system
-	install -m 0644 ${WORKDIR}/mfg-patches.service ${D}${systemd_unitdir}/system/mfg-patches.service
+	install -m 0644 ${S}/mfg-patches.service ${D}${systemd_unitdir}/system/
 }
 
 FILES_${PN} += "${systemd_unitdir}/system/mfg-patches.service"

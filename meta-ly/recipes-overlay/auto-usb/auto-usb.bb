@@ -10,9 +10,9 @@ S = "${WORKDIR}"
 
 do_install() {
 	install -d ${D}${systemd_unitdir}/system
-	install -m 0644 ${WORKDIR}/auto-usb.service ${D}${systemd_unitdir}/system/auto-usb.service
+	install -m 0644 ${S}/auto-usb.service ${D}${systemd_unitdir}/system/
 	install -d ${D}${sysconfdir}
-	install -m 0755 ${WORKDIR}/auto_usb.sh ${D}${sysconfdir}/auto_usb.sh
+	install -m 0755 ${S}/auto_usb.sh ${D}${sysconfdir}/
 }
 
 FILES_${PN} += "${systemd_unitdir}/system/auto-usb.service"
