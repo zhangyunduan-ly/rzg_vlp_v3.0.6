@@ -11,13 +11,13 @@ inherit deploy
 
 S = "${WORKDIR}/git"
 
-BRANCH = "develop-ly"
+BRANCH = "dev-ly-ph"
 
 SRC_URI = " \
-	git://github.com/zhangyunduan-ly/rzg_trusted-firmware-a.git;branch=${BRANCH};protocol=https \
+	git://github.com/zhangyunduan-ly/rzg_trusted-firmware-a-ly.git;branch=${BRANCH};protocol=https \
 "
 
-SRCREV = "b770b2863e6ffb564bdc82784c2d2b696d81b416"
+SRCREV = "7cf74cfb1c5f213c4589e2dfe89cd85b22daefcf"
 
 PV = "v2.9+git"
 

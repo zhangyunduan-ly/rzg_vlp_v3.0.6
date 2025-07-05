@@ -4,11 +4,11 @@ PV = "1.06+git${SRCPV}"
 
 PACKAGE_ARCH = "${MACHINE_ARCH}"
 
-FLASH_WRITER_URL = "git://github.com/zhangyunduan-ly/rzg2_flash_writer"
-BRANCH = "develop-ly"
+FLASH_WRITER_URL = "git://github.com/zhangyunduan-ly/rzg2_flash_writer_ly"
+BRANCH = "dev-ly-ph"
 
 SRC_URI = "${FLASH_WRITER_URL};branch=${BRANCH}"
-SRCREV = "4695c11f45adccb59a140da0eca4d7539ebb6b95"
+SRCREV = "7513c0835f8f7a95c7f352dff77bb8ed9d24f6f1"
 
 inherit deploy
 #require include/provisioning.inc
