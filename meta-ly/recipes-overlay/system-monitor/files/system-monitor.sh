@@ -7,7 +7,7 @@ sdALLName=sd*
 
 usbDir=/mnt/usb
 tarUsbPath=$usbDir/ifp
-insPath=/data/app/extapps
+insPath=/data/application/extapps
 InsName=installer
 
 # 用户U盘挂载标志
@@ -31,7 +31,11 @@ appName=mainapp
 appActive=0
 appRun=0
 
-# 蓝牙串口设备
+# CPU frequency
+curCpuFreq=0
+cpuMonitorInterval=0
+
+# Bluetooth serial device
 RtkHciDevice=ttySC3
 
 # 上锁防止多sh运行
@@ -60,6 +64,10 @@ function mount_sda_plat()
 	# 日志拷贝
 	if [ -f "$logUsbPath/$logSHName" ] && [ $logUsb == 0 ];then
 		echo "find $logUsbPath/$logSHName"
+		if [ ! -d "$insPath" ];then	
+			echo "$insPath dir is non created"
+			mkdir -p $insPath
+		fi
 		cp $logUsbPath/$logSHName  $insPath/
 		chmod 777 $insPath/$logSHName
 		$insPath/$logSHName
@@ -70,7 +78,7 @@ function mount_sda_plat()
 	if [ -f "$tarUsbPath/$InsName" ] && [ $InsUsb == 0 ];then
 		echo "find $tarUsbPath/$InsName "
 		
-		# 创建安装包路径		
+		# 创建安装包路径
 		if [ ! -d "$insPath" ];then	
 			echo "$insPath dir is non created"
 			mkdir -p $insPath
@@ -226,7 +234,54 @@ function app_monitor()
 	fi
 }
 
-# 启动Realtek蓝牙协议栈程序
+# configure cpu voltage
+function set_pmic_cpu_volt()
+{
+	echo "set pmic cpu volt $1"
+
+	# unlock
+	i2cset -y 0 0x51 0x3E 0x00
+	i2cset -y 0 0x51 0x3F 0xB0
+	i2cset -y 0 0x51 0x3F 0xA9
+	i2cset -y 0 0x51 0x3F 0x8A
+	i2cset -y 0 0x51 0x3F 0xA7
+	i2cset -y 0 0x51 0x3F 0xA8
+	i2cset -y 0 0x51 0x3F 0xB1
+
+	# set
+	i2cset -y 0 0x51 0x0F $1
+
+	# lock
+	i2cset -y 0 0x51 0x3E 0x00
+	i2cset -y 0 0x51 0x3F 0x00
+}
+
+# CPU frequency monitor
+function cpu_freq_monitor()
+{
+	# check every 10 seconds
+	((cpuMonitorInterval++))
+	if [ $cpuMonitorInterval -lt 10 ]; then
+		return
+	fi
+	cpuMonitorInterval=0
+
+	# Adjust the CPU voltage according to the CPU frequency
+	cpuFreq=$(cat /sys/devices/system/cpu/cpufreq/policy0/scaling_cur_freq)
+	if [ $cpuFreq -ne $curCpuFreq ]; then
+		curCpuFreq=$cpuFreq
+		case $cpuFreq in
+			1200000 | 600000)
+				set_pmic_cpu_volt 0x6E
+			;;
+			300000 | 150000)
+				set_pmic_cpu_volt 0x69
+			;;
+		esac
+	fi
+}
+
+# Configure Realtek Bluetooth communication parameters
 function rtk_hci_start()
 {
 	rtk_hciattach -n -s 115200 $RtkHciDevice rtk_h5 &
@@ -239,6 +294,7 @@ rtk_hci_start
 while true
 do
 	usb_monitor
-	app_monitor
+	# app_monitor
+	cpu_freq_monitor
 	sleep 1
 done
