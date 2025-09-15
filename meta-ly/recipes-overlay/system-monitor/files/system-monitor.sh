@@ -3,11 +3,11 @@
 CURDIR=$(cd $(dirname $0) && pwd )
 
 sdALLPath=/dev
-sdALLName=sd*
+sdALLName=sd*[0-9]*
 
 usbDir=/mnt/usb
 tarUsbPath=$usbDir/ifp
-insPath=/data/application/extapps
+insPath=/usr/local/extapps
 InsName=installer
 
 # 用户U盘挂载标志
@@ -25,11 +25,9 @@ logSHName=logcopy.sh
 logUsb=0
 
 # app目录
-firmwarePath=/data/mainapp/firmware
 upgradePath=/data/mainapp/firmware/upgrade
-appName=mainapp
-appActive=0
-appRun=0
+DCUAPPFILE=$upgradePath/dcuapp.tar.gz
+INSTALLFILE=$upgradePath/install.sh
 
 # CPU frequency
 curCpuFreq=0
@@ -78,7 +76,7 @@ function mount_sda_plat()
 	if [ -f "$tarUsbPath/$InsName" ] && [ $InsUsb == 0 ];then
 		echo "find $tarUsbPath/$InsName "
 		
-		# 创建安装包路径
+		# 创建安装包路径		
 		if [ ! -d "$insPath" ];then	
 			echo "$insPath dir is non created"
 			mkdir -p $insPath
@@ -160,77 +158,139 @@ function usb_monitor()
 		if [ "$mounted" == "on" ];then
 			echo "umount $usbDir"
 			umount $usbDir
+		fi
+
+		if [ -d $usbDir ]; then
 			rm -rf $usbDir
 		fi
 	fi
 }
 
-function get_mainapp_file()
-{
-	local dir_path="$1"  # 获取传入的第一个参数作为目录路径
-	local file
-
-	# 使用 for 循环和通配符列出以 mainapp 为前缀的文件
-	for file in "$dir_path/mainapp"*; do
-		if [ -f "$file" ]; then
-			# 输出完整的文件路径
-			echo "$file"
-			return 0
-		fi
-	done
-
-	# 如果没有找到文件，返回非零值
-	return 1
-}
-
-#监控mainapp是否升级
+#监控是否需要升级
+INSTALLFILE_EXIT_CODE=0
+UPGRADELOG="/home/root/upgrade.log"
+UPGRADETEMPLOG="/home/root/upgrade_temp.log"
 function app_monitor()
 {
-	file_path=$(get_mainapp_file "$upgradePath")
+	if [ -f $DCUAPPFILE ]; then
+		echo "find dcuapp file: $DCUAPPFILE"
+		sleep 5
 
-	# 检查是否找到文件
-	if [ -n "$file_path" ]; then
-		echo "find mainapp file: $file_path"
-		#卸载mainapp
-		rpm -e mainapp
-		rm -rf $firmwarePath/mainapp*
+		tar -zxvf "$DCUAPPFILE" -C "$upgradePath"
 
-		#安装mainapp
-		cp $file_path $firmwarePath
-		rm -rf $file_path
-		package=$(get_mainapp_file "$firmwarePath")
-		rpm -Uvh --force $package
-	else
-		package=$(get_mainapp_file "$firmwarePath")
-		# 检查服务是否安装
-		if find /lib/systemd/system -type f -name "mainapp*" | grep -q .; then
-			# 检查服务是否正在运行
-			status=$(systemctl is-active mainapp)
-			if [ "$status" = "active" ]; then
-				#echo "mainapp service is running."
-				appActive=0
-				appRun=0
-			else
-				appActive=$((appActive + 1))
-				if [ $appActive -gt 5 ]; then
-					appActive=0
-					appRun=$((appRun + 1))
-					if [ $appRun -gt 3 ]; then
-						rpm -e mainapp
-						rpm -Uvh --force $package
-					else
-						echo "mainapp service is not running."
-						# 使能mainapp service
-						systemctl enable mainapp
-						systemctl start mainapp
-					fi
+		if [ -f $INSTALLFILE ]; then
+			chmod +x $INSTALLFILE
+			/bin/bash $INSTALLFILE
+			INSTALLFILE_EXIT_CODE=$?
+
+			echo "upgrade result $INSTALLFILE_EXIT_CODE"
+			if [ $INSTALLFILE_EXIT_CODE -eq 0 ]; then
+				currenttime=`date "+%Y-%m-%d %H:%M:%S"`
+				echo "$currenttime $DCUAPPFILE upgrade fail" >> $UPGRADELOG
+				tail -n 10 $UPGRADELOG > $UPGRADETEMPLOG && mv $UPGRADETEMPLOG $UPGRADELOG
+			fi
+
+			rm -rf /data/mainapp/firmware/upgrade/*
+
+			echo "System will reboot now..."
+			sleep 2
+			systemctl reboot
+		fi
+	fi
+}
+
+SYSTEMDIR="/home/root/"
+DISKTESTFILE="/data/disk_testfile"
+SYSTEMERRORFILE=$SYSTEMDIR"fileSystemError"
+disk_count=0
+
+function disk_monitor()
+{
+	disk_count=$((disk_count + 1))
+
+	if [ ! $disk_count -ge 600 ]; then
+		return
+	fi
+
+	disk_count=0
+
+	if [ -f $SYSTEMERRORFILE ]; then
+		return
+	fi
+
+	# 尝试创建测试文件
+	if ! touch "$DISKTESTFILE" 2>/dev/null; then
+		# 创建失败，说明文件系统异常，创建异常标记文件
+		filename=$SYSTEMDIR"fs.log"
+		filesize=0
+		maxsize=$((1024*256))
+		totalcount=0
+		dataformat=0
+		onemonthsecs=2592000
+		currnettime=0
+
+		if [ -e $filename ];then
+			#read file size
+			filesize=`ls -l $filename | awk '{print $5}'`
+			#read file system error counts
+			totalcount=`cat $filename | tail -1 | awk -F, '{print $1}' | awk -F= '{print $2}'`
+			if [ $totalcount -ge 2 ];then
+				recentdate=`cat $filename | tail -2 | head -1 | awk -F, '{print $2}' | awk -F= '{print $2}'`
+				recenttime=`date -d "$recentdate" +%s`
+				dataformat=`cat $filename | tail -2 | tail -1 | awk -F, '{print $3}' | awk -F= '{print $2}'`
+				
+				#read datetime
+				nowtime=`date +%s`
+
+				period=`expr $nowtime - $recenttime`
+				if [ $period -le $onemonthsecs ]; then
+					dataformat=`expr $dataformat + 1`
+				else
+					dataformat=0
 				fi
 			fi
-		else
-			echo "mainapp service is unstalled"
-			rpm -e mainapp
-			rpm -Uvh --force $package
 		fi
+
+		currenttime=`date "+%Y-%m-%d %H:%M:%S"`
+		totalcount=`expr $totalcount + 1`
+		if [ $filesize -gt $maxsize ];then
+			echo "errcount=$totalcount,date=$currenttime,format=$dataformat" > $filename
+		else
+			echo "errcount=$totalcount,date=$currenttime,format=$dataformat" >> $filename
+		fi
+
+		#format data paration
+		if [ $dataformat -gt 0 ];then
+			systemctl stop boa
+			systemctl stop mainapp #stop mainapp service
+			docker stop $(docker ps -aq) #stop all docker container
+
+			# 获取所有容器名称，并遍历处理
+			docker ps -a --format "{{.Names}}" | while read -r container_name; do
+				mount_point="/data/${container_name}_datafile"
+				umount "$mount_point"
+			done
+
+			#umount and format data paration
+			umount /dev/mmcblk0p3
+			mkfs.ext4 -F /dev/mmcblk0p3
+
+			#mount data paration
+			mount -t ext4 -o rw,relatime /dev/mmcblk0p3 /data
+
+			#copy data
+			cp -r /backup/* /data/
+			
+			if [ $dataformat -eq 3 ];then
+				touch $SYSTEMERRORFILE
+			fi
+		fi
+
+		#reboot DCU
+		echo "system reboot now..."
+		reboot
+		exit 0
+
 	fi
 }
 
@@ -281,20 +341,32 @@ function cpu_freq_monitor()
 	fi
 }
 
+# Set 8821cs log level
+function rtl8821cs_loglevel_set()
+{
+	if [ -f /proc/net/rtl8821cs/log_level ]; then
+		echo 0 > /proc/net/rtl8821cs/log_level
+	fi
+}
+
 # Configure Realtek Bluetooth communication parameters
 function rtk_hci_start()
 {
-	rtk_hciattach -n -s 115200 $RtkHciDevice rtk_h5 &
+	if modinfo hci_uart >/dev/null 2>&1; then
+		rtk_hciattach -n -s 115200 $RtkHciDevice rtk_h5 &
+	fi
 }
 
 echo "system monitor will running !!!"
 
+rtl8821cs_loglevel_set
 rtk_hci_start
 
 while true
 do
 	usb_monitor
-	# app_monitor
+	app_monitor
 	cpu_freq_monitor
+	disk_monitor
 	sleep 1
 done
